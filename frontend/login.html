@@ -151,9 +151,12 @@
     </div>
 
     <script>
-        async function entrar() {
+        function entrar() {
             const password = document.getElementById('pass').value;
             
+            // LA CLAVE QUE PEDISTE
+            const CLAVE_CORRECTA = "quirofanosse"; 
+
             if (!password) {
                 Swal.fire({
                     icon: 'warning',
@@ -164,42 +167,28 @@
                 return;
             }
 
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ password })
+            // Validación local para evitar errores de servidor por ahora
+            if (password === CLAVE_CORRECTA) {
+                sessionStorage.setItem('autorizado', 'true'); 
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Acceso concedido',
+                    showConfirmButton: false,
+                    timer: 1000,
+                    timerProgressBar: true
+                }).then(() => {
+                    // Redirige al archivo principal de tu sistema
+                    window.location.href = 'index.html'; 
                 });
-
-                if (res.ok) {
-                    sessionStorage.setItem('autorizado', 'true'); 
-                    
-                    // Alerta de éxito breve antes de redirigir
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Acceso concedido',
-                        showConfirmButton: false,
-                        timer: 1000,
-                        timerProgressBar: true
-                    }).then(() => {
-                        window.location.href = 'index.html';
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Acceso Denegado',
-                        text: 'La clave maestra es incorrecta.',
-                        confirmButtonColor: '#e74c3c'
-                    });
-                    document.getElementById('pass').value = '';
-                }
-            } catch (error) {
+            } else {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Error de conexión',
-                    text: 'No se pudo contactar con el servidor.',
+                    title: 'Acceso Denegado',
+                    text: 'La clave maestra es incorrecta.',
                     confirmButtonColor: '#e74c3c'
                 });
+                document.getElementById('pass').value = '';
             }
         }
 
