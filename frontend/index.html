@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SISTEMA MÉDICO QX</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="css/styles.css">
+    <script>
+        if (sessionStorage.getItem('autorizado') !== 'true') window.location.href = 'login.html';
+    </script>
+</head>
+<body>
+    <div class="top-bar">
+        <span>SISTEMA MÉDICO QX</span>
+        <div class="date-filter">
+            <label>Viendo Agenda del día:</label>
+            <input type="date" id="filtroFecha" onchange="cargarCirugias()">
+        </div>
+        <button class="btn-logout" onclick="sessionStorage.clear(); location.href='login.html'">Cerrar Sesión</button>
+    </div>
+    <div class="main-layout">
+        <aside class="form-side">
+            <h3>Nueva Programación</h3>
+            <div class="form-group"><label>Paciente (Opcional):</label><input type="text" id="paciente"></div>
+            <div class="form-group"><label>Médico Especialista:</label><input type="text" id="doctor"></div>
+            <div class="form-group">
+                <label>Quirófano:</label>
+                <select id="quirofano">
+                    <option value="4">Sala 4</option><option value="3">Sala 3</option>
+                    <option value="2">Sala 2</option><option value="1">Sala 1</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Procedimiento:</label><input type="text" id="proc"></div>
+            <div class="form-group"><label>Fecha:</label><input type="date" id="fecha"></div>
+            <div class="form-group"><label>Hora Inicio:</label><input type="time" id="hora"></div>
+            <div class="form-group">
+                <label>Duración Estimada:</label>
+                <select id="dur">
+                    <option value="00:30:00">30 Minutos</option>
+                    <option value="01:00:00" selected>1 Hora</option>
+                    <option value="01:30:00">1.5 Horas</option>
+                    <option value="02:00:00">2 Horas</option>
+                    <option value="02:30:00">2.5Horas</option>
+                    <option value="03:00:00">3 Horas</option>
+                    <option value="03:30:00">3.5 Horas</option>
+                    <option value="04:00:00">4 Horas</option>
+                    <option value="04:30:00">4.5Horas</option>
+                    <option value="05:00:00">5 Horas</option>
+                    <option value="05:30:00">5.5Horas</option>
+                    <option value="06:00:00">6 Horas</option>
+                    <option value="06:30:00">6.5Horas</option>
+                    <option value="07:00:00">7 Horas</option>
+                    <option value="07:30:00">7.5 Horas</option>
+                    <option value="08:00:00">8 Horas</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Notas Médicas:</label><textarea id="notas" rows="3"></textarea></div>
+            <button class="btn-agendar" onclick="enviar()">Agendar Cirugía</button>
+        </aside>
+        <section class="agenda-side">
+            <div id="agenda" class="agenda-grid"></div>
+        </section>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+</html>
