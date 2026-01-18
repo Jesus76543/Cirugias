@@ -4,28 +4,23 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const surgeryRoutes = require('./backend/routes/surgeryRoutes');
-const loginRoutes = require('./backend/routes/loginRoutes'); // Si tienes rutas de login aparte
+const surgeryRoutes = require('./backend/routes/surgeryRoutes'); // Esta es la única que necesitas
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Servir archivos estáticos del Frontend
-// Esto asume que tu carpeta "frontend" está al mismo nivel que server.js
+// Servir archivos del frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 
 // Rutas de la API
 app.use('/api', surgeryRoutes);
-// app.use('/api', loginRoutes);
 
-// Redirigir cualquier otra ruta al index.html (Útil para Single Page Apps)
+// Redirigir al index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-// Puerto dinámico para Render/Koyeb
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`Servidor operando en puerto: ${PORT}`);
+    console.log(`Servidor listo en puerto ${PORT}`);
 });
