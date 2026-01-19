@@ -283,19 +283,24 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #999;
 }
-/* Estilo para el bloque de limpieza */
-.fila-limpieza {
-    background-color: #f1f2f6 !important; /* Gris claro */
-    color: #7f8c8d;
-    font-style: italic;
-    font-size: 0.85rem;
+/* Necesario para que la limpieza se ubique bien dentro de la celda */
+.slot-cell {
+    position: relative;
 }
 
-.badge-limpieza {
-    background-color: #95a5a6;
+.limpieza-card {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    background: rgba(127, 140, 141, 0.5); /* Gris semi-transparente */
     color: white;
-    padding: 3px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
+    font-size: 0.65rem;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5; /* Por debajo de la cirugía pero visible */
+    border-left: 5px solid #2c3e50;
+    pointer-events: none; /* No interfiere con los clics */
+    text-transform: uppercase;
 }
