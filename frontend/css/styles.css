@@ -304,3 +304,36 @@ body {
     pointer-events: none; /* No interfiere con los clics */
     text-transform: uppercase;
 }
+.slot-cell {
+    position: relative;
+    z-index: 1;
+}
+
+.evento-card {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    z-index: 20; /* Cirugía por encima de todo */
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.limpieza-card {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    background: rgba(44, 62, 80, 0.9) !important; /* Gris oscuro muy visible */
+    color: white;
+    font-size: 0.65rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30; /* Limpieza ahora encima para asegurar visibilidad */
+    border-left: 5px solid #000;
+    pointer-events: none;
+}
