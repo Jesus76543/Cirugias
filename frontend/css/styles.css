@@ -283,3 +283,19 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #999;
 }
+/* Estilo para el bloque de limpieza */
+.fila-limpieza {
+    background-color: #f1f2f6 !important; /* Gris claro */
+    color: #7f8c8d;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.badge-limpieza {
+    background-color: #95a5a6;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
