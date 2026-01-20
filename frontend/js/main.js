@@ -41,7 +41,7 @@ function generarCuadricula24h() {
     }
 }
 
-// 2. Cargar datos y dibujar limpieza
+// 2. Cargar datos desde la API
 async function cargarCirugias() {
     const fechaSel = document.getElementById('filtroFecha').value;
     try {
@@ -53,33 +53,43 @@ async function cargarCirugias() {
 
         if (!Array.isArray(datos)) return;
 
-        datos.filter(c => c.fecha_programada.split('T')[0] === fechaSel).forEach(c => {
+        // Filtrar cirugías por fecha y excluir las que fueron borradas (canceladas)
+        datos.filter(c => c.fecha_programada.split('T')[0] === fechaSel && c.estado !== 'cancelada').forEach(c => {
             const [h, m] = c.hora_inicio.split(':');
             const cellId = `q${c.quirofano_id}-${h}${parseInt(m) < 30 ? '00' : '30'}`;
             const cell = document.getElementById(cellId);
             
             if (cell) {
-                // Calcular altura de la cirugía
                 const [durH, durM] = c.duracion_estimada.split(':');
                 const totalMinutos = (parseInt(durH) * 60) + parseInt(durM);
                 const altoPx = (totalMinutos / 30) * 48; 
 
-                // Dibujar Tarjeta de Cirugía
+                // --- DIBUJAR CIRUGÍA ---
                 const card = document.createElement('div');
                 card.className = 'evento-card';
-                const hue = (c.id * 137.5) % 360; 
-                card.style.backgroundColor = `hsl(${hue}, 75%, 88%)`;
-                card.style.borderLeft = `5px solid hsl(${hue}, 70%, 45%)`;
+                
+                // Color apagado si está terminada
+                if (c.estado === 'terminada') {
+                    card.style.backgroundColor = '#d1d8e0';
+                    card.style.borderLeft = '5px solid #778ca3';
+                    card.style.color = '#4b6584';
+                    card.style.opacity = '0.6';
+                } else {
+                    const hue = (c.id * 137.5) % 360; 
+                    card.style.backgroundColor = `hsl(${hue}, 75%, 88%)`;
+                    card.style.borderLeft = `5px solid hsl(${hue}, 70%, 45%)`;
+                }
+
                 card.style.height = `${altoPx - 4}px`;
                 card.innerHTML = `<strong>${c.tipo_procedimiento}</strong><span>Dr. ${c.doctor_nombre}</span>`;
                 card.onclick = () => gestionarCirugia(c);
                 cell.appendChild(card);
 
-                // --- AQUÍ ESTÁN LOS 15 MIN DE LIMPIEZA ---
+                // --- DIBUJAR LIMPIEZA (Los 15 min) ---
                 const limpieza = document.createElement('div');
                 limpieza.className = 'limpieza-card';
-                limpieza.style.top = `${altoPx}px`; // Inicia justo donde termina la cirugía
-                limpieza.style.height = `22px`;   // Representa 15 minutos (media celda)
+                limpieza.style.top = `${altoPx}px`; 
+                limpieza.style.height = `22px`; 
                 limpieza.innerHTML = `🧹 Limpieza`;
                 cell.appendChild(limpieza);
             }
@@ -89,11 +99,11 @@ async function cargarCirugias() {
     }
 }
 
-// 3. Gestión de Cirugía (SweetAlert)
+// 3. Gestión de Cirugía con Alertas de Seguridad
 async function gestionarCirugia(c) {
     const { value: accion } = await Swal.fire({
         title: 'Gestión de Cirugía',
-        html: `<b>Paciente:</b> ${c.paciente_nombre}<br><b>Notas:</b> ${c.notas || 'Sin notas'}`,
+        html: `<b>Paciente:</b> ${c.paciente_nombre}<br><b>Médico:</b> ${c.doctor_nombre}`,
         showCancelButton: true,
         showDenyButton: true,
         confirmButtonText: '✅ Terminar',
@@ -104,46 +114,48 @@ async function gestionarCirugia(c) {
         cancelButtonColor: '#f39c12'
     });
 
-    if (accion === true) actualizarEstatus(c.id, 'terminada');
-    else if (accion === false) actualizarEstatus(c.id, 'cancelada');
-    else if (accion === undefined && Swal.getCancelButton().innerText.includes('Editar')) abrirModalEdicion(c);
-}
-
-// 4. Edición de datos
-async function abrirModalEdicion(c) {
-    const { value: formValues } = await Swal.fire({
-        title: 'Editar Información',
-        html:
-            `<input id="swal-paciente" class="swal2-input" placeholder="Paciente" value="${c.paciente_nombre}">` +
-            `<input id="swal-doctor" class="swal2-input" placeholder="Médico" value="${c.doctor_nombre}">` +
-            `<input id="swal-proc" class="swal2-input" placeholder="Procedimiento" value="${c.tipo_procedimiento}">` +
-            `<textarea id="swal-notas" class="swal2-textarea" placeholder="Notas">${c.notas || ''}</textarea>`,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Guardar Cambios',
-        preConfirm: () => {
-            return {
-                paciente_nombre: document.getElementById('swal-paciente').value,
-                doctor_nombre: document.getElementById('swal-doctor').value,
-                tipo_procedimiento: document.getElementById('swal-proc').value,
-                notas: document.getElementById('swal-notas').value
-            }
-        }
-    });
-
-    if (formValues) {
-        const res = await fetch(`/api/cirugias/${c.id}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(formValues)
+    if (accion === true) {
+        // Alerta: Confirmar Terminar
+        const confirm = await Swal.fire({
+            title: '¿Marcar como terminada?',
+            text: "Se mantendrá en el gráfico con un color gris.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, terminar'
         });
-        if (res.ok) {
-            Swal.fire('Actualizado', 'Datos corregidos', 'success').then(() => cargarCirugias());
-        }
+        if(confirm.isConfirmed) actualizarEstatus(c.id, 'terminada');
+        
+    } else if (accion === false) {
+        // Alerta: Confirmar Cancelar/Borrar
+        const confirm = await Swal.fire({
+            title: '¿Confirmas la cancelación?',
+            text: "Esta acción eliminará el registro de la vista actual.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cancelar'
+        });
+        if(confirm.isConfirmed) actualizarEstatus(c.id, 'cancelada');
+        
+    } else if (accion === undefined && Swal.getCancelButton().innerText.includes('Editar')) {
+        abrirModalEdicion(c);
     }
 }
 
-// 5. Enviar Nueva Cirugía
+// 4. Actualizar estado en servidor
+async function actualizarEstatus(id, estatus) {
+    try {
+        await fetch('/api/update-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id, estatus })
+        });
+        cargarCirugias();
+    } catch (e) {
+        console.error("Error al actualizar estado:", e);
+    }
+}
+
+// 5. Enviar Nueva Cirugía (Formulario)
 async function enviar() {
     const data = {
         paciente_nombre: document.getElementById('paciente').value,
@@ -163,18 +175,9 @@ async function enviar() {
     });
 
     if (res.ok) {
-        Swal.fire('Éxito', 'Cirugía agendada', 'success').then(() => cargarCirugias());
+        Swal.fire('Éxito', 'Cirugía agendada correctamente', 'success').then(() => cargarCirugias());
     } else {
         const err = await res.json();
         Swal.fire('Error', err.error, 'error');
     }
-}
-
-async function actualizarEstatus(id, estatus) {
-    await fetch('/api/update-status', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, estatus })
-    });
-    cargarCirugias();
 }
