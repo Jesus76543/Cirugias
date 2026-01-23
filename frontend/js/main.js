@@ -10,10 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarCirugias();
 });
 
+// 1. Generar la cuadrícula visual de 24 horas
 function generarCuadricula24h() {
     const agenda = document.getElementById('agenda');
     if (!agenda) return;
-    agenda.innerHTML = `<div class="header-cell">HORA</div><div class="header-cell">Q4</div><div class="header-cell">Q3</div><div class="header-cell">Q2</div><div class="header-cell">Q1</div>`;
+    
+    agenda.innerHTML = `
+        <div class="header-cell">HORA</div>
+        <div class="header-cell">Q4</div>
+        <div class="header-cell">Q3</div>
+        <div class="header-cell">Q2</div>
+        <div class="header-cell">Q1</div>
+    `;
 
     for (let h = 0; h <= 23; h++) {
         ["00", "30"].forEach(m => {
@@ -22,6 +30,7 @@ function generarCuadricula24h() {
             timeDiv.className = 'time-cell';
             timeDiv.innerText = `${hStr}:${m}`;
             agenda.appendChild(timeDiv);
+
             for (let q = 4; q >= 1; q--) {
                 const cell = document.createElement('div');
                 cell.className = 'slot-cell';
@@ -32,30 +41,38 @@ function generarCuadricula24h() {
     }
 }
 
+// 2. Cargar datos y dibujar bloques (Cirugía + Limpieza + Notas)
 async function cargarCirugias() {
     const fechaSel = document.getElementById('filtroFecha').value;
     try {
         const res = await fetch('/api/cirugias');
         const datos = await res.json();
+        
+        // Limpiar elementos anteriores
         document.querySelectorAll('.evento-card, .limpieza-card').forEach(e => e.remove());
 
-        // Mostramos pendientes y terminadas, pero NO canceladas
+        if (!Array.isArray(datos)) return;
+
+        // Filtrar por fecha y excluir canceladas
         datos.filter(c => c.fecha_programada.split('T')[0] === fechaSel && c.estado !== 'cancelada').forEach(c => {
             const [h, m] = c.hora_inicio.split(':');
-            const cell = document.getElementById(`q${c.quirofano_id}-${h}${parseInt(m) < 30 ? '00' : '30'}`);
+            const cellId = `q${c.quirofano_id}-${h}${parseInt(m) < 30 ? '00' : '30'}`;
+            const cell = document.getElementById(cellId);
             
             if (cell) {
                 const [durH, durM] = c.duracion_estimada.split(':');
                 const totalMinutos = (parseInt(durH) * 60) + parseInt(durM);
                 const altoPx = (totalMinutos / 30) * 48; 
 
+                // Crear Tarjeta de Cirugía
                 const card = document.createElement('div');
                 card.className = 'evento-card';
                 
-                // Estilo según estado
+                // Estilo según estado (Gris si está terminada)
                 if (c.estado === 'terminada') {
-                    card.style.backgroundColor = '#d1d8e0'; // Gris
-                    card.style.borderLeft = '5px solid #778ca3';
+                    card.style.backgroundColor = '#ecf0f1';
+                    card.style.borderLeft = '5px solid #95a5a6';
+                    card.style.color = '#7f8c8d';
                     card.style.opacity = '0.7';
                 } else {
                     const hue = (c.id * 137.5) % 360; 
@@ -64,25 +81,36 @@ async function cargarCirugias() {
                 }
 
                 card.style.height = `${altoPx - 4}px`;
-                card.innerHTML = `<strong>${c.tipo_procedimiento}</strong><span>Dr. ${c.doctor_nombre}</span>`;
+                
+                // Contenido de la tarjeta incluyendo NOTAS
+                card.innerHTML = `
+                    <div style="font-weight: bold; font-size: 0.8rem; line-height: 1.1;">${c.tipo_procedimiento}</div>
+                    <div style="font-size: 0.7rem; margin-bottom: 2px;">Dr. ${c.doctor_nombre}</div>
+                    ${c.notas ? `<div style="font-size: 0.65rem; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 2px; font-style: italic; color: #444;">📌 ${c.notas}</div>` : ''}
+                `;
+                
                 card.onclick = () => gestionarCirugia(c);
                 cell.appendChild(card);
 
+                // Bloque de limpieza
                 const limpieza = document.createElement('div');
                 limpieza.className = 'limpieza-card';
                 limpieza.style.top = `${altoPx}px`; 
-                limpieza.style.height = `22px`; 
+                limpieza.style.height = `22px`;   
                 limpieza.innerHTML = `🧹 Limpieza`;
                 cell.appendChild(limpieza);
             }
         });
-    } catch (e) { console.error("Error al cargar:", e); }
+    } catch (error) {
+        console.error("Error al cargar:", error);
+    }
 }
 
+// 3. Gestión de Cirugía (Finalizar, Cancelar o Editar)
 async function gestionarCirugia(c) {
     const { value: accion, dismiss } = await Swal.fire({
         title: 'Gestión de Cirugía',
-        html: `<b>Paciente:</b> ${c.paciente_nombre}<br><b>Médico:</b> ${c.doctor_nombre}`,
+        html: `<b>Paciente:</b> ${c.paciente_nombre}<br><b>Procedimiento:</b> ${c.tipo_procedimiento}`,
         showCancelButton: true,
         showDenyButton: true,
         confirmButtonText: '✅ Terminar',
@@ -96,7 +124,7 @@ async function gestionarCirugia(c) {
     if (accion === true) {
         const confirm = await Swal.fire({
             title: '¿Terminar cirugía?',
-            text: "Se quedará en el gráfico con color apagado.",
+            text: "Se mostrará en gris en la agenda.",
             icon: 'question',
             showCancelButton: true
         });
@@ -104,27 +132,32 @@ async function gestionarCirugia(c) {
     } else if (accion === false) {
         const confirm = await Swal.fire({
             title: '¿Confirmas la cancelación?',
-            text: "Esta acción quitará el registro del gráfico.",
+            text: "Se eliminará permanentemente del gráfico.",
             icon: 'warning',
             showCancelButton: true
         });
         if(confirm.isConfirmed) actualizarEstatus(c.id, 'cancelada');
     } else if (dismiss === Swal.DismissReason.cancel) {
-        // SOLUCIÓN AL CIERRE DEL MODAL: Retraso mínimo para abrir el siguiente
+        // Retraso para evitar que el modal de edición se cierre automáticamente
         setTimeout(() => {
             abrirModalEdicion(c);
-        }, 100);
+        }, 150);
     }
 }
 
+// 4. Modal de Edición
 async function abrirModalEdicion(c) {
     const { value: formValues } = await Swal.fire({
         title: 'Editar Información',
         html:
+            `<div style="text-align: left; font-size: 0.9rem;">Paciente:</div>` +
             `<input id="swal-paciente" class="swal2-input" placeholder="Paciente" value="${c.paciente_nombre || ''}">` +
+            `<div style="text-align: left; font-size: 0.9rem;">Médico:</div>` +
             `<input id="swal-doctor" class="swal2-input" placeholder="Médico" value="${c.doctor_nombre || ''}">` +
+            `<div style="text-align: left; font-size: 0.9rem;">Procedimiento:</div>` +
             `<input id="swal-proc" class="swal2-input" placeholder="Procedimiento" value="${c.tipo_procedimiento || ''}">` +
-            `<textarea id="swal-notas" class="swal2-textarea" placeholder="Notas">${c.notas || ''}</textarea>`,
+            `<div style="text-align: left; font-size: 0.9rem;">Notas / Indicaciones:</div>` +
+            `<textarea id="swal-notas" class="swal2-textarea" placeholder="Notas e indicaciones">${c.notas || ''}</textarea>`,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: 'Guardar Cambios',
@@ -139,27 +172,22 @@ async function abrirModalEdicion(c) {
     });
 
     if (formValues) {
-        const res = await fetch(`/api/cirugias/${c.id}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(formValues)
-        });
-        if (res.ok) {
-            Swal.fire('Actualizado', 'Datos guardados', 'success');
-            cargarCirugias();
+        try {
+            const res = await fetch(`/api/cirugias/${c.id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(formValues)
+            });
+            if (res.ok) {
+                Swal.fire('Éxito', 'Información actualizada', 'success').then(() => cargarCirugias());
+            }
+        } catch (error) {
+            Swal.fire('Error', 'No se pudo actualizar', 'error');
         }
     }
 }
 
-async function actualizarEstatus(id, estatus) {
-    await fetch('/api/update-status', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, estatus })
-    });
-    cargarCirugias();
-}
-
+// 5. Enviar Nueva Cirugía
 async function enviar() {
     const data = {
         paciente_nombre: document.getElementById('paciente').value,
@@ -171,15 +199,30 @@ async function enviar() {
         duracion: document.getElementById('dur').value,
         notas: document.getElementById('notas').value
     };
+
     const res = await fetch('/api/cirugias', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
+
     if (res.ok) {
-        Swal.fire('Éxito', 'Cirugía agendada', 'success').then(() => cargarCirugias());
+        Swal.fire('Éxito', 'Cirugía agendada', 'success').then(() => {
+            // Limpiar formulario manual si es necesario
+            cargarCirugias();
+        });
     } else {
         const err = await res.json();
         Swal.fire('Error', err.error, 'error');
     }
+}
+
+// 6. Auxiliar para estatus
+async function actualizarEstatus(id, estatus) {
+    await fetch('/api/update-status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id, estatus })
+    });
+    cargarCirugias();
 }
